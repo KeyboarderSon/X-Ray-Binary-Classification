@@ -52,30 +52,34 @@ test_datagen = ImageDataGenerator(rescale = 1./255)
 train_set = train_datagen.flow_from_directory('../origin_split/train',
                                                  target_size = (256, 256),
                                                  batch_size = batch_size,
-                                                 color_mode = 'rgb'
+                                                 color_mode = 'rgb',
                                                  class_mode = 'binary')
 
 val_set = test_datagen.flow_from_directory('../origin_split/val',
                                             target_size = (256, 256),
                                             batch_size = 16,
-                                            color_mode = 'rgb'
+                                            color_mode = 'rgb',
                                             class_mode = 'binary')
 
 test_set = test_datagen.flow_from_directory('../origin_split/val',
                                             target_size = (256, 256),
                                             batch_size = 1,
-                                            color_mode = 'rgb'
+                                            color_mode = 'rgb',
                                             class_mode = 'binary')
 
 
 if not TEST_MODEL:
-    densenet = densenet.DenseNet121(include_top=False, weights='my_model.h5', input_tensor=None, input_shape=(256, 256, 3))
+    densenet121 = densenet.DenseNet121(weights=None, input_shape=(256, 256, 3))
 
 
+    #model=load_model('my_model.h5')
 
     model = Sequential([
-        densenet,
+        #densenet121,
+        load_model('my_model.h5'),
         Flatten(),
+        Dense(1024, activation='relu'),
+        Dropout(0.5),
         Dense(512, activation='relu'),
         Dropout(0.5),
         Dense(1, activation='sigmoid')
@@ -83,6 +87,7 @@ if not TEST_MODEL:
 
 
     model.summary()
+    #model.load_weights('my_model.h5')
 
     #로그 파일이 어디에서 남겨지지?
     tensorboard = TensorBoard(log_dir=".\logs")
@@ -109,12 +114,12 @@ if not TEST_MODEL:
 								)
 
 
-    history = model.fit_generator(training_set,
+    history = model.fit_generator(train_set,
                          steps_per_epoch = len(train_set),
                          epochs = epochs,
                          validation_data = val_set,
                          callbacks=[learning_rate_reduction, early_stop, checkpoint, tensorboard]
-                         validation_steps = 20)
+                         )
 
 
     plt.figure(1)
@@ -138,7 +143,7 @@ test_score = model.evaluate_generator(test_set, verbose=2)
 print('\nModel Accuracy: ', test_score[1])
 
 print('\nParameters used:',
-	'\ntrain_samples:   ', len(train_data),
+	'\ntrain_samples:   ', len(train_set),
 	'\nepochs:          ', epochs,
 	'\nbatch_size:      ', batch_size,
 	'\ninit_learn_rate: ', lr)

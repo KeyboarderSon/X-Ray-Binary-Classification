@@ -2,10 +2,11 @@ import tensorflow as tf
 from tensorflow.keras.layers import Dense, Conv2D, MaxPool2D, Flatten, Dropout
 from tensorflow.keras.models import Sequential
 from tensorflow.keras.callbacks import ModelCheckpoint
-from tensorflow.keras.applications import Densenet121
+from tensorflow.keras.applications import densenet
 from keras import optimizers
-from sklearn.model_selection import train_test_split
+from keras.preprocessing.image import ImageDataGenerator
 from keras.models import load_model
+from tensorflow.keras.callbacks import TensorBoard
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping
 import matplotlib.pyplot as plt
 import os
@@ -17,7 +18,7 @@ epochs = 50
 batch_size = 32
 lr = 0.0008
 os.environ["CUDA_VISIBLE_DEVICES"]="2"
-
+"""
 images_path = {}
 images_path["normal"] = glob("tf/joohye/origin/normal/*.jpg")
 images_path["abnormal"] = glob("tf/joohye/origin/abnormal/*.jpg")
@@ -35,13 +36,40 @@ for label in images_path:
         image = cv2.resize(image, (256, 256))
         X.append(image)
         Y.append(images_class[label])
+"""
+train_datagen = ImageDataGenerator(samplewise_center=True,
+                                samplewise_std_normalization=True,
+                                height_shift_range=0.05,
+                                rotation_range=5,                   
+                                shear_range = 0.1,
+                                zoom_range = 0.15,
+                                horizontal_flip = True)
 
-train_data, test_x, train_label, test_y = train_test_split(X, Y, random_state=66, test_size=0.3)
-test_data, val_data, test_label, val_label = train_test_split(test_x, test_y, random_state=66, test_size=0.5)
+
+
+test_datagen = ImageDataGenerator(rescale = 1./255)
+
+train_set = train_datagen.flow_from_directory('../origin_split/train',
+                                                 target_size = (256, 256),
+                                                 batch_size = batch_size,
+                                                 color_mode = 'rgb'
+                                                 class_mode = 'binary')
+
+val_set = test_datagen.flow_from_directory('../origin_split/val',
+                                            target_size = (256, 256),
+                                            batch_size = 16,
+                                            color_mode = 'rgb'
+                                            class_mode = 'binary')
+
+test_set = test_datagen.flow_from_directory('../origin_split/val',
+                                            target_size = (256, 256),
+                                            batch_size = 1,
+                                            color_mode = 'rgb'
+                                            class_mode = 'binary')
 
 
 if not TEST_MODEL:
-    densenet = Densenet121(include_top=False, weights='my_model.h5', input_tensor=None, input_shape=(256, 256, 3))
+    densenet = densenet.DenseNet121(include_top=False, weights='my_model.h5', input_tensor=None, input_shape=(256, 256, 3))
 
 
 
@@ -52,6 +80,12 @@ if not TEST_MODEL:
         Dropout(0.5),
         Dense(1, activation='sigmoid')
     ])
+
+
+    model.summary()
+
+    #로그 파일이 어디에서 남겨지지?
+    tensorboard = TensorBoard(log_dir=".\logs")
 
     optimizer=optimizers.SGD(lr=lr, momentum=0.9)
     model.compile(optimizer=optimizer, loss= 'binary_crossentropy', metrics='acc')
@@ -74,13 +108,14 @@ if not TEST_MODEL:
 	                             save_weights_only=True
 								)
 
-    history = model.fit(train_data,
-            validation_data=val_data,
-            batch_size=batch_size,
-            epochs=epochs,
-            shuffle=True,
-            callbacks=[checkpoint]
-            )
+
+    history = model.fit_generator(training_set,
+                         steps_per_epoch = len(train_set),
+                         epochs = epochs,
+                         validation_data = val_set,
+                         callbacks=[learning_rate_reduction, early_stop, checkpoint, tensorboard]
+                         validation_steps = 20)
+
 
     plt.figure(1)
     plt.plot(history.history['loss'], label="TrainLoss")
@@ -99,7 +134,7 @@ if not TEST_MODEL:
 
 print('##### Evaluating Model on Test Data #####')
 ################################# Evaluate model on Test Data ############################
-test_score = model.evaluate(test_data, verbose=2)
+test_score = model.evaluate_generator(test_set, verbose=2)
 print('\nModel Accuracy: ', test_score[1])
 
 print('\nParameters used:',

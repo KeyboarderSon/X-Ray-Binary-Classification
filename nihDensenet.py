@@ -6,6 +6,7 @@ from tensorflow.keras.applications import densenet
 from keras import optimizers
 from keras.preprocessing.image import ImageDataGenerator
 from keras.models import load_model
+#from keras.models import load_weights
 from tensorflow.keras.callbacks import TensorBoard
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping
 import matplotlib.pyplot as plt
@@ -14,7 +15,7 @@ from glob import glob
 import cv2
 
 TEST_MODEL = False
-epochs = 50
+epochs = 100
 batch_size = 32
 lr = 0.0008
 os.environ["CUDA_VISIBLE_DEVICES"]="2"
@@ -61,13 +62,28 @@ val_set = test_datagen.flow_from_directory('../origin_split/val',
                                             color_mode = 'rgb',
                                             class_mode = 'binary')
 
-test_set = test_datagen.flow_from_directory('../origin_split/val',
+test_set = test_datagen.flow_from_directory('../origin_split/test',
                                             target_size = (256, 256),
                                             batch_size = 1,
                                             color_mode = 'rgb',
                                             class_mode = 'binary')
 
 
+"""
+model = Sequential([
+        load_model('my_model.h5'),
+        Flatten(),
+        Dense(1024, activation='relu'),
+        Dropout(0.5),
+        Dense(512, activation='relu'),
+        Dropout(0.5),
+        Dense(1, activation='sigmoid')
+    ])
+
+
+optimizer=optimizers.SGD(lr=lr, momentum=0.9)
+model.compile(optimizer=optimizer, loss= 'binary_crossentropy', metrics='acc')
+"""
 if not TEST_MODEL:
     densenet121 = densenet.DenseNet121(weights=None, input_shape=(256, 256, 3))
 
@@ -105,7 +121,7 @@ if not TEST_MODEL:
 	                           mode="min",
 	                           patience=30)
         
-    checkpoint = ModelCheckpoint('binary.hdf5',
+    checkpoint = ModelCheckpoint('binary100.hdf5',
 	                             monitor='val_loss',
 	                             verbose=1,
 	                             save_best_only=True,
@@ -127,7 +143,7 @@ if not TEST_MODEL:
     plt.plot(history.history['val_loss'], label="ValLoss")
     plt.legend(loc='best', shadow=True)
     plt.show()
-    plt.savefig('Loss.png')
+    plt.savefig('Loss100.png')
 
 	#fig, ax = plt.subplots(2, 1, figsize=(6, 6))
     plt.figure(2)
@@ -135,10 +151,16 @@ if not TEST_MODEL:
     plt.plot(history.history['val_acc'], label="ValAcc")
     plt.legend(loc='best', shadow=True)
     plt.show()
-    plt.savefig('Acc.png')
+    plt.savefig('Acc100.png')
+
+
+    model.save('binary_model100.h5')
+    
 
 print('##### Evaluating Model on Test Data #####')
 ################################# Evaluate model on Test Data ############################
+#model.load_weights('binary.hdf5')
+model=load_model('binary_model100.h5')
 test_score = model.evaluate_generator(test_set, verbose=2)
 print('\nModel Accuracy: ', test_score[1])
 

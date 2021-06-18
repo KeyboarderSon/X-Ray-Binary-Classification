@@ -6,7 +6,6 @@ from tensorflow.keras.applications import densenet
 from keras import optimizers
 from keras.preprocessing.image import ImageDataGenerator
 from keras.models import load_model
-#from keras.models import load_weights
 from tensorflow.keras.callbacks import TensorBoard
 from keras.callbacks import ReduceLROnPlateau, ModelCheckpoint, EarlyStopping
 import matplotlib.pyplot as plt
@@ -15,29 +14,11 @@ from glob import glob
 import cv2
 
 TEST_MODEL = False
-epochs = 100
+epochs = 50
 batch_size = 32
-lr = 0.0008
+lr = 0.001
 os.environ["CUDA_VISIBLE_DEVICES"]="2"
-"""
-images_path = {}
-images_path["normal"] = glob("tf/joohye/origin/normal/*.jpg")
-images_path["abnormal"] = glob("tf/joohye/origin/abnormal/*.jpg")
 
-images_class = {
-    "normal" : 0,
-    "abnormal" : 1
-}
-
-X=[]
-Y=[]
-for label in images_path:
-    for image_path in image_path[label]:
-        image = cv2.imread(image_path)
-        image = cv2.resize(image, (256, 256))
-        X.append(image)
-        Y.append(images_class[label])
-"""
 train_datagen = ImageDataGenerator(samplewise_center=True,
                                 samplewise_std_normalization=True,
                                 height_shift_range=0.05,
@@ -69,29 +50,12 @@ test_set = test_datagen.flow_from_directory('../origin_split/test',
                                             class_mode = 'binary')
 
 
-"""
-model = Sequential([
-        load_model('my_model.h5'),
-        Flatten(),
-        Dense(1024, activation='relu'),
-        Dropout(0.5),
-        Dense(512, activation='relu'),
-        Dropout(0.5),
-        Dense(1, activation='sigmoid')
-    ])
-
-
-optimizer=optimizers.SGD(lr=lr, momentum=0.9)
-model.compile(optimizer=optimizer, loss= 'binary_crossentropy', metrics='acc')
-"""
 if not TEST_MODEL:
-    densenet121 = densenet.DenseNet121(weights=None, input_shape=(256, 256, 3))
+    #densenet121 = densenet.DenseNet121(weights=None, input_shape=(256, 256, 3))
 
 
-    #model=load_model('my_model.h5')
 
     model = Sequential([
-        #densenet121,
         load_model('my_model.h5'),
         Flatten(),
         Dense(1024, activation='relu'),
@@ -103,9 +67,6 @@ if not TEST_MODEL:
 
 
     model.summary()
-    #model.load_weights('my_model.h5')
-
-    #로그 파일이 어디에서 남겨지지?
     tensorboard = TensorBoard(log_dir=".\logs")
 
     optimizer=optimizers.SGD(lr=lr, momentum=0.9)
@@ -145,7 +106,6 @@ if not TEST_MODEL:
     plt.show()
     plt.savefig('Loss100.png')
 
-	#fig, ax = plt.subplots(2, 1, figsize=(6, 6))
     plt.figure(2)
     plt.plot(history.history['acc'], label="TrainAcc")
     plt.plot(history.history['val_acc'], label="ValAcc")
@@ -158,8 +118,6 @@ if not TEST_MODEL:
     
 
 print('##### Evaluating Model on Test Data #####')
-################################# Evaluate model on Test Data ############################
-#model.load_weights('binary.hdf5')
 model=load_model('binary_model100.h5')
 test_score = model.evaluate_generator(test_set, verbose=2)
 print('\nModel Accuracy: ', test_score[1])
